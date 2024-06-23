@@ -1,0 +1,70 @@
+import cv2
+import mediapipe as mp
+import serial
+
+# Set up the serial connection to Arduino
+arduino = serial.Serial('COM12', 9600)  # Change 'COM3' to your Arduino's serial port
+
+# Set up MediaPipe hands model
+mp_hands = mp.solutions.hands
+hands = mp_hands.Hands()
+mp_drawing = mp.solutions.drawing_utils
+
+# OpenCV video capture
+cap = cv2.VideoCapture(0)
+
+def detect_hand_gesture(hand_landmarks):
+    # Check if the hand is a fist or open
+    fingers_open = [False] * 5
+
+    if hand_landmarks:
+        # Thumb
+        if hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_TIP].x > hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_IP].x:
+            fingers_open[0] = True
+        # Index
+        if hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP].y < hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_PIP].y:
+            fingers_open[1] = True
+        # Middle
+        if hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP].y < hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_PIP].y:
+            fingers_open[2] = True
+        # Ring
+        if hand_landmarks.landmark[mp_hands.HandLandmark.RING_FINGER_TIP].y < hand_landmarks.landmark[mp_hands.HandLandmark.RING_FINGER_PIP].y:
+            fingers_open[3] = True
+        # Pinky
+        if hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_TIP].y < hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_PIP].y:
+            fingers_open[4] = True
+
+    if all(fingers_open):
+        return 'open'
+    elif not any(fingers_open):
+        return 'fist'
+    else:
+        return 'other'
+
+while cap.isOpened():
+    success, image = cap.read()
+    if not success:
+        print("Ignoring empty camera frame.")
+        continue
+
+    image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
+    results = hands.process(image)
+
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+    if results.multi_hand_landmarks:
+        for hand_landmarks in results.multi_hand_landmarks:
+            mp_drawing.draw_landmarks(image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+            gesture = detect_hand_gesture(hand_landmarks)
+            if gesture == 'open':
+                arduino.write(b'1')  # Send '1' to turn the LED on
+            elif gesture == 'fist':
+                arduino.write(b'0')  # Send '0' to turn the LED off
+
+    cv2.imshow('Hand Gesture Recognition', image)
+
+    if cv2.waitKey(5) & 0xFF == 27:
+        break
+
+cap.release()
+cv2.destroyAllWindows()
