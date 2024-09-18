@@ -1,1 +1,1 @@
-# Arduino-Device-for-Controlling-Electrical-Appliances-Through-use-of-Hand-Gestures-Voice-Modulation
+# Controlling-Electrical-Appliances-Through-The-use-of-Hand-Gestures-and-Voice-Modulation-using-an-Arduino-Device
